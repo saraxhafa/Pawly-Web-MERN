@@ -1,16 +1,3 @@
-# React + Vite
+Pawly - A Web in MERN Technologies ...
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+In the digital age, technology is playing their role for all of them to take care of a certain person, take care of and take care of their life. One of the areas that often requires more organization and is that of its well-being. Considering the number of people who have been many and the need for reliable services such as adoption, care and treatment of them, the need arises for an integrated and modern platform. This project aims at a technology internet user with MERN technology (MongoDB, Express.js, React.js and Node.js). The platform unites in a single system businesses, companies and businesses that have or have a service related to others, making processes better, more transparent and more efficient. The main functions of the life adoption systems platform, that potential users publish or adopt to receive the right information, breed vaccines and health status. Thus, the platform offers a marketplace for care services, where users can book services such as daycare, services, grooming, training and transportation, as well as complete online pages through secure methods such as Stripe, PayPal or bank cards. In terms of technology, the frontend is built with React using functional components, React Hooks and React Router for structured navigation, as well as forms for authentication and data management. The backend is built with Node.js and Express.js, following a structured architecture with Routes, Controllers and Models in MongoDB through Mongoose. The security of the platform is guaranteed through authentication with JWT, encryption of the means of their use for route protection and access control. In this way, the project aims to create a modern solution for everyone and that works to receive care and adoption, contributing to the creation of a more connected and responsible community towards other animals.

@@ -1,10 +1,15 @@
-import "./App.css";
+import background from "../assets/images/background_pawly4.png";
+import "../styles/App.css";
+import { Link } from "react-router-dom";
 
 function Home() {
   return (
-    <section className="hero">
+    <section
+      className="hero"
+      style={{ backgroundImage: `url(${background})` }}
+    >
       <div className="content">
-        <button className="ask-btn">Ask question now →</button>
+        <Link to="/contact" className="ask-btn">Ask question now →</Link>
 
         <div className="text-content">
           <h1>What you say?</h1>
