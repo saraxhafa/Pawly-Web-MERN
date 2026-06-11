@@ -1,61 +1,59 @@
-// Importing necessary modules
-const express = require('express');
-const dotenv = require('dotenv').config();
-const { errorHandler } = require('./middlewares/errorMiddleware');
-const connectDB = require('./connect/database');
-const cors = require('cors');
-const orderRoutes = require('./routes/orderRoutes');
+// Imports
+const express = require("express");
+const dotenv = require("dotenv").config();
+const cors = require("cors");
+
+const connectDB = require("./connect/database");
+const { errorHandler } = require("./middlewares/errorMiddleware");
+
+// Routes
+const taskRoutes = require("./routes/taskRoutes");
+const userRoutes = require("./routes/userRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 
-// Connecting to the database
-console.log("Starting server...");
+// Connect DB
 connectDB();
-console.log("After DB connect");
 
-// Setting the port for the server
+// App init
+const app = express();
 const port = process.env.PORT || 5000;
 
-// Initializing the Express application
-const app = express();
-
-// Enabling CORS for all routes
-app.use(cors());
-
-/*app.use(cors({
-  origin: "http://localhost:5173",
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-}));*/
-
-
-// 🔥 IMPORTANT: handle preflight
-//app.options("*", cors());
-//app.options("*", cors());
-
-// Middleware to parse JSON bodies in requests
 app.use(express.json());
-
-// Middleware to parse URL-encoded bodies in requests
 app.use(express.urlencoded({ extended: false }));
 
-// Importing and using task routes
-app.use('/api/tasks', require('./routes/taskRoutes'));
 
-// Importing and using user routes
-app.use('/api/users', require('./routes/userRoutes'));
 
-// Importing and using order routes
-app.use('/api/orders', orderRoutes);
+// CORS FIRST
+app.use(
+  cors({
+    origin: "https://turbo-doodle-7v775r6479wg2p9px-5173.app.github.dev",
+    credentials: true,
+  })
+);
 
-// Importing and using contact routes
-app.use('/api/contact', contactRoutes);
 
-// Using the custom error handling middleware
+//app.use(cors());
+
+// Routes
+//app.use("/api/tasks", taskRoutes);
+app.use("/api/users", require("./routes/userRoutes"));
+app.use("/api/orders", require("./routes/orderRoutes"));
+app.use("/api/contact", require("./routes/contactRoutes"));
+
+// Error handler
 app.use(errorHandler);
 
-//contact routes
-app.use("/api/contact", contactRoutes);
 
-// Starting the server and listening on the specified port
-app.listen(port, () => console.log(`Server listening on http://localhost:${port}`))
+
+// test route
+app.get("/", (req, res) => {
+  res.send("API working");
+});
+
+
+
+// Start server
+app.listen(port, () =>
+  console.log(`Server running on http://localhost:${port}`)
+);

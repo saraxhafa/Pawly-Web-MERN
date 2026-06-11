@@ -35,7 +35,7 @@ function Contact() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/api/contact", {
+      const response = await fetch("https://turbo-doodle-7v775r6479wg2p9px-5173.app.github.dev/api/contact", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

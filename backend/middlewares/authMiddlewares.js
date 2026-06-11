@@ -4,6 +4,12 @@ const User = require("../models/userModel");
 const Order = require("../models/orderModel");
 
 const protect = asyncHandler(async (req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+  
+
+
   let token;
 
   // 1. Check Authorization header
@@ -44,4 +50,5 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 });
 
-module.exports = { protect };
+
+module.exports={protect}
