@@ -9,6 +9,8 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const closeMenu = () => setOpen(false);
+
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
 
@@ -25,6 +27,12 @@ export default function Navbar() {
     navigate("/");
   };
 
+
+useEffect(() => {
+  setOpen(false);
+}, [location.pathname]);
+
+
   return (
     <header className="navbar">
       <div className="logo">
@@ -39,10 +47,11 @@ export default function Navbar() {
       </div>
 
       <nav className={open ? "nav open" : "nav"}>
+
         {/* Landing Page Sections */}
-        <a href="/#home">Home</a>
-        <a href="/#adopt">Adopt</a>
-        <a href="/#about">About</a>
+        <a href="/#home" onClick={closeMenu}>Home</a>
+        <a href="/#adopt" onClick={closeMenu}>Adopt</a>
+        <a href="/#about" onClick={closeMenu}>About</a>
 
         {/* Separate Pages */}
         <Link to="/veterinary">Veterinary</Link>
@@ -58,6 +67,7 @@ export default function Navbar() {
     <Link className="auth-btn signup-btn" to="/register">
       Sign Up
     </Link>
+
   </>
 ) : (
   <>
@@ -83,6 +93,10 @@ export default function Navbar() {
         >
           Log Out
         </button>
+
+
+
+
       </div>
     </div>
   </>
