@@ -20,9 +20,25 @@ function Dashboard() {
   }, []);
 
   // 📦 fetch orders nga DB
+  
   useEffect(() => {
     dispatch(fetchOrders());
-  }, [dispatch]);
+  }, [dispatch]); 
+
+  /*
+  useEffect(() => {
+  const getDashboard = async () => {
+    const response = await fetch(
+      "https://turbo-doodle-7v775r6479wg2p9px-8000.app.github.dev/api/dashboard"
+    );
+
+    const data = await response.json();
+
+    console.log(data);
+  };
+
+  getDashboard();
+}, []); */
 
   // 📊 total mujor
   const monthlyTotal = orders?.reduce((acc, o) => acc + o.total, 0) || 0;

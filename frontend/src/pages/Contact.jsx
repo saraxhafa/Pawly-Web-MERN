@@ -1,13 +1,16 @@
-import "../styles/App.css";
-import { useState } from "react";
-import { toast } from "react-toastify";
+//faqet e importuara
+import "../styles/App.css"; //stilizimet
+import { useState } from "react"; // Importimi i Hook-ut useState për menaxhimin e gjendjes
+import { toast } from "react-toastify"; // Importimi i njoftimeve (toast notifications)
 import {
   FaMapMarkerAlt,
   FaPhoneAlt,
   FaEnvelope,
   FaClock,
-} from "react-icons/fa";
+} from "react-icons/fa"; // Importimi i ikonave për seksionin e informacionit të kontaktit
 
+/*gjendja fillestare e kontaktit */
+// Ruajmë të dhënat që përdoruesi shkruan në fushat e formularit
 function Contact() {
   const [formData, setFormData] = useState({
     fullName: "",
@@ -16,12 +19,14 @@ function Contact() {
     message: "",
   });
 
-  const [loading, setLoading] = useState(false);
 
+  const [loading, setLoading] = useState(false); // Gjendje që kontrollon nëse kërkesa po dërgohet (te butoni)
+
+  // Funksioni që ekzekutohet kur përdoruesi dërgon formularin
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault();  // Ndalon rifreskimin automatik të faqes
 
-    // frontend validation
+    // sigurohemi qe te gjitha fushat jane plotesuar
     if (
       !formData.fullName ||
       !formData.email ||
@@ -32,10 +37,12 @@ function Contact() {
       return;
     }
 
-    setLoading(true);
+    setLoading(true);  // Aktivizojmë gjendjen loading
 
+
+     // Dërgimi i të dhënave në Backend përmes metodës POST
     try {
-      const response = await fetch("https://turbo-doodle-7v775r6479wg2p9px-5173.app.github.dev/api/contact", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/contact`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -43,28 +50,36 @@ function Contact() {
         body: JSON.stringify(formData),
       });
 
+
+      // Marrim përgjigjen nga serveri
       const data = await response.json();
 
+      // Nëse serveri kthen gabim
       if (!response.ok) {
         throw new Error(data.message || "Request failed");
       }
 
+       // Njoftim suksesi
       toast.success("✅ Message sent successfully!");
 
+       // Pastrojmë formularin pas dërgimit me sukses
       setFormData({
         fullName: "",
         email: "",
         subject: "",
         message: "",
       });
-    } catch (error) {
+
+    } 
+    // Kapim dhe shfaqim gabimet
+    catch (error) {
       console.error(error);
       toast.error("❌ Failed to send message");
     } finally {
       setLoading(false);
     }
   };
-
+// Çaktivizojmë loading pavarësisht rezultatit
   return (
     <section className="contact-page">
       <div className="contact-overlay"></div>

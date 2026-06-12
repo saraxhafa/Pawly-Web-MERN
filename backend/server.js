@@ -11,6 +11,7 @@ const taskRoutes = require("./routes/taskRoutes");
 const userRoutes = require("./routes/userRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const contactRoutes = require("./routes/contactRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 
 // Connect DB
 connectDB();
@@ -19,27 +20,29 @@ connectDB();
 const app = express();
 const port = process.env.PORT || 5000;
 
+// CORS FIRST
+app.use(cors());
+//json express
 app.use(express.json());
+
 app.use(express.urlencoded({ extended: false }));
 
 
-
-// CORS FIRST
+/*
 app.use(
   cors({
     origin: "https://turbo-doodle-7v775r6479wg2p9px-5173.app.github.dev",
     credentials: true,
   })
-);
+);*/
 
-
-//app.use(cors());
 
 // Routes
 //app.use("/api/tasks", taskRoutes);
-app.use("/api/users", require("./routes/userRoutes"));
-app.use("/api/orders", require("./routes/orderRoutes"));
-app.use("/api/contact", require("./routes/contactRoutes"));
+app.use("/api/users", userRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/contact", contactRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Error handler
 app.use(errorHandler);

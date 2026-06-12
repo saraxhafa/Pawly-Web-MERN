@@ -8,7 +8,7 @@ export const fetchOrders = createAsyncThunk(
     try {
       const token = localStorage.getItem("token");
 
-      const res = await axios.get("https://turbo-doodle-7v775r6479wg2p9px-8000.app.github.dev/api/orders", {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/orders`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
