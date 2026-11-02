@@ -123,14 +123,6 @@ export default function Navbar() {
                   Edit Profile
                 </Link>
 
-                {/* DELETE ACCOUNT */}
-                <button
-                  type="button"
-                  className="delete-btn"
-                  onClick={closeMenu}
-                >
-                  Delete Account
-                </button>
 
                 {/* LOGOUT */}
                 <button
