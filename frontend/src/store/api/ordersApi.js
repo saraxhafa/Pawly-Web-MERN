@@ -1,14 +1,28 @@
+
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 export const ordersApi = createApi({
   reducerPath: "ordersApi",
+
   baseQuery: fetchBaseQuery({
-    baseUrl: "https://turbo-doodle-7v775r6479wg2p9px-5173.app.github.dev/orders",
+    baseUrl: import.meta.env.VITE_API_URL,
+
     prepareHeaders: (headers) => {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (user?.token) {
-        headers.set("authorization", `Bearer ${user.token}`);
+      try {
+        const user = JSON.parse(
+          localStorage.getItem("user") || "null"
+        );
+
+        if (user?.token) {
+          headers.set(
+            "Authorization",
+            `Bearer ${user.token}`
+          );
+        }
+      } catch (error) {
+        console.error("Unable to read user session:", error);
       }
+
       return headers;
     },
   }),
@@ -16,23 +30,33 @@ export const ordersApi = createApi({
   tagTypes: ["Orders"],
 
   endpoints: (builder) => ({
-    // 📦 GET ORDERS
+    // GET MY ORDERS
     getOrders: builder.query({
-      query: () => "/orders",
+      query: () => "/orders/myorders",
       providesTags: ["Orders"],
     }),
 
-    // ➕ CREATE ORDER
+    // CREATE ORDER
     createOrder: builder.mutation({
       query: (orderData) => ({
-        url: "/orders",
+        url: "/orders/createorder",
         method: "POST",
         body: orderData,
       }),
       invalidatesTags: ["Orders"],
     }),
 
-    // ❌ DELETE ORDER
+    // UPDATE ORDER
+    updateOrder: builder.mutation({
+      query: ({ id, ...orderData }) => ({
+        url: `/orders/${id}`,
+        method: "PUT",
+        body: orderData,
+      }),
+      invalidatesTags: ["Orders"],
+    }),
+
+    // DELETE ORDER
     deleteOrder: builder.mutation({
       query: (id) => ({
         url: `/orders/${id}`,
@@ -46,5 +70,6 @@ export const ordersApi = createApi({
 export const {
   useGetOrdersQuery,
   useCreateOrderMutation,
+  useUpdateOrderMutation,
   useDeleteOrderMutation,
 } = ordersApi;

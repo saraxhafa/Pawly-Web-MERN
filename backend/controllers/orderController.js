@@ -1,109 +1,306 @@
+
+const mongoose = require("mongoose");
 const Order = require("../models/orderModel");
 const Product = require("../models/productModel");
 
-
 // CREATE ORDER
 const createOrder = async (req, res) => {
-  try {
-    const { products, paymentMethod } = req.body;
+  const session = await mongoose.startSession();
 
-    if (!products || products.length === 0) {
-      return res.status(400).json({ message: "Cart is empty" });
+  try {
+    const { products, paymentMethod, paymentDetails } = req.body;
+
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({
+        message: "Cart is empty",
+      });
     }
 
-    let total = 0;
+    const allowedMethods = ["CASH", "DEBIT", "CREDIT", "WALLET"];
 
-    const enrichedProducts = await Promise.all(
-      products.map(async (item) => {
-        const product = await Product.findById(item.productId);
+    if (!allowedMethods.includes(paymentMethod)) {
+      return res.status(400).json({
+        message: "Invalid payment method",
+      });
+    }
+
+    // Validate and prepare safe payment information
+    let safePaymentDetails;
+
+    if (paymentMethod === "DEBIT" || paymentMethod === "CREDIT") {
+      const cardHolder = paymentDetails?.cardHolder?.trim();
+      const maskedCardNumber = paymentDetails?.maskedCardNumber;
+
+      if (!cardHolder || cardHolder.length < 2) {
+        return res.status(400).json({
+          message: "Invalid cardholder name",
+        });
+      }
+
+      // Accept only a masked number with the last four digits visible.
+      if (
+        typeof maskedCardNumber !== "string" ||
+        !/^\*{9,15}\d{4}$/.test(maskedCardNumber)
+      ) {
+        return res.status(400).json({
+          message: "Invalid masked card number",
+        });
+      }
+
+      safePaymentDetails = {
+        cardHolder,
+        maskedCardNumber,
+      };
+    }
+
+    if (paymentMethod === "WALLET") {
+      const walletProvider = paymentDetails?.walletProvider?.trim();
+      const walletEmail = paymentDetails?.walletEmail?.trim();
+
+      const allowedProviders = [
+        "PayPal",
+        "Google Pay",
+        "Apple Pay",
+        "Other",
+      ];
+
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!allowedProviders.includes(walletProvider)) {
+        return res.status(400).json({
+          message: "Invalid wallet provider",
+        });
+      }
+
+      if (!walletEmail || !emailPattern.test(walletEmail)) {
+        return res.status(400).json({
+          message: "Invalid wallet email",
+        });
+      }
+
+      safePaymentDetails = {
+        walletProvider,
+        walletEmail: walletEmail.toLowerCase(),
+      };
+    }
+
+    // Validate and combine duplicate product IDs
+    const quantities = new Map();
+
+    for (const item of products) {
+      if (
+        !mongoose.Types.ObjectId.isValid(item.productId) ||
+        !Number.isInteger(item.quantity) ||
+        item.quantity <= 0
+      ) {
+        return res.status(400).json({
+          message: "Invalid product or quantity",
+        });
+      }
+
+      const id = item.productId.toString();
+
+      quantities.set(
+        id,
+        (quantities.get(id) || 0) + item.quantity
+      );
+    }
+
+    let createdOrder;
+
+    await session.withTransaction(async () => {
+      let total = 0;
+      const enrichedProducts = [];
+
+      for (const [productId, quantity] of quantities) {
+        const product = await Product.findById(productId).session(
+          session
+        );
 
         if (!product) {
-          throw new Error(`Product not found in system`);
+          throw new Error("Product not found in system");
         }
 
-        const subtotal = product.price * item.quantity;
+        // Atomically check and decrease stock
+        const stockUpdate = await Product.updateOne(
+          {
+            _id: product._id,
+            stock: { $gte: quantity },
+          },
+          {
+            $inc: { stock: -quantity },
+          },
+          { session }
+        );
+
+        if (stockUpdate.modifiedCount !== 1) {
+          throw new Error(
+            `Insufficient stock for ${product.name}`
+          );
+        }
+
+        const subtotal = product.price * quantity;
         total += subtotal;
 
-        return {
+        enrichedProducts.push({
           productId: product._id,
-          productName: product.name,   // ✔ emri
+          name: product.name,
+          category: product.category,
           priceAtPurchase: product.price,
-          quantity: item.quantity,
-        };
-      })
-    );
+          quantity,
+        });
+      }
 
-    const order = await Order.create({
-      user: req.user._id,
-      products: enrichedProducts,
-      total,
-      paymentMethod,
+      const orderData = {
+        user: req.user._id,
+        products: enrichedProducts,
+        total,
+        paymentMethod,
+      };
+
+      // Save only approved payment fields.
+      // Any full card number or CVV sent by a client is ignored.
+      if (safePaymentDetails) {
+        orderData.paymentDetails = safePaymentDetails;
+      }
+
+      const orders = await Order.create(
+        [orderData],
+        { session }
+      );
+
+      createdOrder = orders[0];
     });
 
-    res.status(201).json(order);
+    return res.status(201).json(createdOrder);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    return res.status(error.statusCode || 400).json({
+      message: error.message,
+    });
+  } finally {
+    await session.endSession();
   }
 };
-
 
 // GET MY ORDERS
 const getMyOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user._id });
-    res.json(orders);
+    const orders = await Order.find({
+      user: req.user._id,
+    }).sort({ createdAt: -1 });
+
+    return res.status(200).json(orders);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: error.message,
+    });
   }
 };
 
-// UPDATE ORDER (user can update own order)
+// UPDATE ORDER - ALLOW CANCELLATION ONLY
 const updateOrder = async (req, res) => {
+  const session = await mongoose.startSession();
+
   try {
-    const order = await Order.findById(req.params.id);
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    if (order.user.toString() !== req.user._id.toString()) {
-      return res.status(401).json({
-        message: "Not authorized to update this order",
+    if (req.body.status !== "Cancelled") {
+      return res.status(400).json({
+        message: "Only order cancellation is allowed",
       });
     }
 
-    const updatedOrder = await Order.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
+    let updatedOrder;
 
-    res.json(updatedOrder);
+    await session.withTransaction(async () => {
+      const order = await Order.findById(req.params.id).session(
+        session
+      );
+
+      if (!order) {
+        throw new Error("Order not found");
+      }
+
+      if (order.user.toString() !== req.user._id.toString()) {
+        const error = new Error(
+          "Not authorized to update this order"
+        );
+        error.statusCode = 403;
+        throw error;
+      }
+
+      if (order.status !== "Pending") {
+        throw new Error("Only pending orders can be cancelled");
+      }
+
+      // Restore product stock
+      for (const item of order.products) {
+        await Product.updateOne(
+          { _id: item.productId },
+          { $inc: { stock: item.quantity } },
+          { session }
+        );
+      }
+
+      order.status = "Cancelled";
+      updatedOrder = await order.save({ session });
+    });
+
+    return res.status(200).json(updatedOrder);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(error.statusCode || 400).json({
+      message: error.message,
+    });
+  } finally {
+    await session.endSession();
   }
 };
 
-// DELETE ORDER
+// DELETE ORDER - PENDING ORDERS ONLY
 const deleteOrder = async (req, res) => {
+  const session = await mongoose.startSession();
+
   try {
-    const order = await Order.findById(req.params.id);
+    await session.withTransaction(async () => {
+      const order = await Order.findById(req.params.id).session(
+        session
+      );
 
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
+      if (!order) {
+        throw new Error("Order not found");
+      }
 
-    if (order.user.toString() !== req.user._id.toString()) {
-      return res.status(401).json({
-        message: "Not authorized to delete this order",
-      });
-    }
+      if (order.user.toString() !== req.user._id.toString()) {
+        const error = new Error(
+          "Not authorized to delete this order"
+        );
+        error.statusCode = 403;
+        throw error;
+      }
 
-    await order.deleteOne();
+      if (order.status !== "Pending") {
+        throw new Error("Only pending orders can be deleted");
+      }
 
-    res.json({ message: "Order deleted successfully" });
+      // Restore stock before deleting the order
+      for (const item of order.products) {
+        await Product.updateOne(
+          { _id: item.productId },
+          { $inc: { stock: item.quantity } },
+          { session }
+        );
+      }
+
+      await order.deleteOne({ session });
+    });
+
+    return res.status(200).json({
+      message: "Order deleted successfully",
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(error.statusCode || 400).json({
+      message: error.message,
+    });
+  } finally {
+    await session.endSession();
   }
 };
 

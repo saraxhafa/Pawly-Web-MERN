@@ -1,33 +1,58 @@
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
-// 🔥 fetch orders from backend
 export const fetchOrders = createAsyncThunk(
   "orders/fetchOrders",
   async (_, thunkAPI) => {
     try {
-      const token = localStorage.getItem("token");
+      const storedUser = JSON.parse(
+        localStorage.getItem("user") || "null"
+      );
 
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/orders`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const token = storedUser?.token;
+
+      if (!token) {
+        return thunkAPI.rejectWithValue({
+          message: "You must log in first",
+        });
+      }
+
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/orders`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       return res.data;
     } catch (err) {
-      return thunkAPI.rejectWithValue(err.response.data);
+      return thunkAPI.rejectWithValue(
+        err.response?.data || {
+          message: "Unable to fetch orders",
+        }
+      );
     }
   }
 );
 
 const orderSlice = createSlice({
   name: "orders",
+
   initialState: {
     orders: [],
     loading: false,
   },
-  reducers: {},
+
+  reducers: {
+    clearOrders: (state) => {
+      state.orders = [];
+      state.loading = false;
+    },
+  },
+
   extraReducers: (builder) => {
     builder
       .addCase(fetchOrders.pending, (state) => {
@@ -43,55 +68,7 @@ const orderSlice = createSlice({
   },
 });
 
+
+export const { clearOrders } = orderSlice.actions;
+
 export default orderSlice.reducer;
-
-
-
-
-/*
-import { createSlice } from "@reduxjs/toolkit";
-
-const initialState = {
-  cart: {},
-  lastOrder: null,
-};
-
-const ordersSlice = createSlice({
-  name: "orders",
-  initialState,
-  reducers: {
-    addToCart: (state, action) => {
-      const id = action.payload;
-      state.cart[id] = (state.cart[id] || 0) + 1;
-    },
-
-    removeFromCart: (state, action) => {
-      const id = action.payload;
-
-      if (!state.cart[id]) return;
-
-      state.cart[id] -= 1;
-
-      if (state.cart[id] <= 0) {
-        delete state.cart[id];
-      }
-    },
-
-    clearCart: (state) => {
-      state.cart = {};
-    },
-
-    setLastOrder: (state, action) => {
-      state.lastOrder = action.payload;
-    },
-  },
-});
-
-export const {
-  addToCart,
-  removeFromCart,
-  clearCart,
-  setLastOrder,
-} = ordersSlice.actions;
-
-export default ordersSlice.reducer; */

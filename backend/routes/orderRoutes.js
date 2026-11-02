@@ -1,3 +1,4 @@
+
 const express = require("express");
 
 const {
@@ -11,10 +12,10 @@ const { protect } = require("../middlewares/authMiddlewares");
 
 const router = express.Router();
 
+// All order routes require authentication
 router.post("/createorder", protect, createOrder);
 router.get("/myorders", protect, getMyOrders);
-router.put("/:_id", protect, updateOrder);
-router.delete("/:_id", protect, deleteOrder);
-
+router.put("/:id", protect, updateOrder);
+router.delete("/:id", protect, deleteOrder);
 
 module.exports = router;

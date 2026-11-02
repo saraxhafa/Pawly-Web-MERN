@@ -39,7 +39,12 @@ const Register = () => {
     }
 
     try {
-      const result = await register(formData).unwrap();
+      const result = await register({
+  name,
+  email,
+  password,
+  confirmPassword: password2,
+}).unwrap();
 
       dispatch(setUser(result));
       localStorage.setItem("user", JSON.stringify(result));
