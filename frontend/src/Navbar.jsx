@@ -43,12 +43,15 @@ export default function Navbar() {
         <Link to="/">🐾 Pawly</Link>
       </div>
 
-      <div
+      <button
+        type="button"
         className="hamburger"
         onClick={() => setOpen(!open)}
+        aria-label="Toggle navigation menu"
+        aria-expanded={open}
       >
         ☰
-      </div>
+      </button>
 
       <nav className={open ? "nav open" : "nav"}>
 
@@ -111,23 +114,33 @@ export default function Navbar() {
               </span>
 
               <div className="dropdown-menu">
+
+                {/* EDIT PROFILE */}
                 <Link
-                  to="/profile/edit"
+                  to="/edit-profile"
                   onClick={closeMenu}
                 >
                   Edit Profile
                 </Link>
 
-                <button className="delete-btn">
+                {/* DELETE ACCOUNT */}
+                <button
+                  type="button"
+                  className="delete-btn"
+                  onClick={closeMenu}
+                >
                   Delete Account
                 </button>
 
+                {/* LOGOUT */}
                 <button
+                  type="button"
                   className="logout-btn"
                   onClick={handleLogout}
                 >
                   Log Out
                 </button>
+
               </div>
             </div>
           </>

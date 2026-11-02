@@ -1,3 +1,4 @@
+
 const express = require("express");
 const router = express.Router();
 
@@ -10,7 +11,7 @@ const {
   updateProfile,
 } = require("../controllers/userController");
 
-const { protect } = require("../middlewares/authMiddlewares"); // FIX: emri korrekt
+const { protect } = require("../middlewares/authMiddlewares");
 
 // PUBLIC ROUTES
 router.post("/register", registerUser);

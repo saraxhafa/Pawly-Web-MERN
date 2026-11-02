@@ -1,6 +1,7 @@
 
 const mongoose = require("mongoose");
 
+// PAYMENT DETAILS SCHEMA
 const paymentDetailsSchema = new mongoose.Schema(
   {
     cardHolder: {
@@ -10,6 +11,7 @@ const paymentDetailsSchema = new mongoose.Schema(
 
     maskedCardNumber: {
       type: String,
+      trim: true,
     },
 
     walletProvider: {
@@ -26,12 +28,37 @@ const paymentDetailsSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// CUSTOMER SNAPSHOT SCHEMA
+const customerSnapshotSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
+  },
+  { _id: false }
+);
+
+// ORDER SCHEMA
 const orderSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+    },
+
+    customerSnapshot: {
+      type: customerSnapshotSchema,
+      required: false,
     },
 
     products: [
@@ -51,6 +78,7 @@ const orderSchema = new mongoose.Schema(
         name: {
           type: String,
           required: true,
+          trim: true,
         },
 
         priceAtPurchase: {
@@ -61,6 +89,7 @@ const orderSchema = new mongoose.Schema(
 
         category: {
           type: String,
+          trim: true,
         },
       },
     ],
@@ -87,7 +116,10 @@ const orderSchema = new mongoose.Schema(
       default: "Pending",
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 module.exports = mongoose.model("Order", orderSchema);
+

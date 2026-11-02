@@ -1,16 +1,14 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import "../styles/App1.css";
 
 import { useGetOrdersQuery } from "../store/api/ordersApi";
-import { clearCart } from "../store/slices/cardSlice";
 
 function Dashboard() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const user = useSelector((state) => state.user.user);
@@ -45,7 +43,6 @@ function Dashboard() {
     endDate: "",
   });
 
-  // Tracks whether the user has clicked Search
   const [hasSearched, setHasSearched] = useState(false);
 
   // Live date and time
@@ -60,7 +57,7 @@ function Dashboard() {
   // Authentication check
   useEffect(() => {
     if (!isAuthenticated || !user?.token) {
-      navigate("/login");
+      navigate("/login", { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -73,6 +70,34 @@ function Dashboard() {
     }
 
     return String(id || product?.name || "");
+  };
+
+  // Get customer information saved with the order
+  const getOrderCustomer = (order) => {
+    // Preferred source: customer snapshot saved at purchase time
+    if (order?.customerSnapshot) {
+      return {
+        name: order.customerSnapshot.name || "Name unavailable",
+        email: order.customerSnapshot.email || "Email unavailable",
+      };
+    }
+
+    // Fallback for older orders if the user reference is populated
+    if (
+      order?.user &&
+      typeof order.user === "object"
+    ) {
+      return {
+        name: order.user.name || "Name unavailable",
+        email: order.user.email || "Email unavailable",
+      };
+    }
+
+    // Do not use the current profile as historical order data
+    return {
+      name: "Historical information unavailable",
+      email: "Not recorded with this order",
+    };
   };
 
   // Get unique products from all orders
@@ -108,7 +133,9 @@ function Dashboard() {
       endDate &&
       startDate > endDate
     ) {
-      toast.error("The start date cannot be after the end date.");
+      toast.error(
+        "The start date cannot be after the end date."
+      );
       return;
     }
 
@@ -278,7 +305,6 @@ function Dashboard() {
 
       {/* Statistics */}
       <div className="stats">
-
         <div className="card">
           <h3>📦 Total Orders</h3>
           <p>{orders.length}</p>
@@ -293,12 +319,10 @@ function Dashboard() {
           <h3>💰 Total Spent</h3>
           <p>{totalSpent.toFixed(2)}€</p>
         </div>
-
       </div>
 
       {/* Orders Section */}
       <section className="orders-section">
-
         <div className="orders-heading">
           <div>
             <h2>📦 My Orders</h2>
@@ -363,9 +387,7 @@ function Dashboard() {
           {selectedPeriod === "CUSTOM" && (
             <>
               <div className="filter-field">
-                <label htmlFor="startDate">
-                  From
-                </label>
+                <label htmlFor="startDate">From</label>
 
                 <input
                   id="startDate"
@@ -379,9 +401,7 @@ function Dashboard() {
               </div>
 
               <div className="filter-field">
-                <label htmlFor="endDate">
-                  To
-                </label>
+                <label htmlFor="endDate">To</label>
 
                 <input
                   id="endDate"
@@ -398,7 +418,6 @@ function Dashboard() {
 
           {/* Filter Buttons */}
           <div className="filter-actions">
-
             <button
               type="button"
               className="search-filter-btn"
@@ -414,9 +433,7 @@ function Dashboard() {
             >
               Clear Filters
             </button>
-
           </div>
-
         </div>
 
         {/* Order Results */}
@@ -461,106 +478,125 @@ function Dashboard() {
           <div className="orders-list-scroll">
             <div className="orders-list">
 
-              {filteredOrders.map((order) => (
-                <article
-                  className="dash-order-card"
-                  key={order._id}
-                >
+              {filteredOrders.map((order) => {
+                const customer = getOrderCustomer(order);
 
-                  {/* Order Header */}
-                  <div className="dash-order-header">
+                return (
+                  <article
+                    className="dash-order-card"
+                    key={order._id}
+                  >
 
-                    <div>
-                      <span className="order-number">
-                        ORDER #{order._id.slice(-6).toUpperCase()}
+                    {/* Order Header */}
+                    <div className="dash-order-header">
+                      <div>
+                        <span className="order-number">
+                          ORDER #
+                          {order._id
+                            .slice(-6)
+                            .toUpperCase()}
+                        </span>
+
+                        <p className="order-date">
+                          📅 {formatDate(order.createdAt)}
+                          {" · "}
+                          {formatTime(order.createdAt)}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`order-status ${getStatusClass(
+                          order.status
+                        )}`}
+                      >
+                        {order.status || "Unknown"}
                       </span>
+                    </div>
 
-                      <p className="order-date">
-                        📅 {formatDate(order.createdAt)}
-                        {" · "}
-                        {formatTime(order.createdAt)}
+                    {/* Customer Information */}
+                    <div className="dash-order-customer">
+                      <h4>👤 Customer Information</h4>
+
+                      <p>
+                        <strong>Name:</strong>{" "}
+                        {customer.name}
+                      </p>
+
+                      <p>
+                        <strong>Email:</strong>{" "}
+                        {customer.email}
                       </p>
                     </div>
 
-                    <span
-                      className={`order-status ${getStatusClass(
-                        order.status
-                      )}`}
-                    >
-                      {order.status || "Unknown"}
-                    </span>
+                    {/* Order Products */}
+                    <div className="dash-order-products">
+                      {order.products?.map((product, index) => (
+                        <div
+                          className="dash-order-product"
+                          key={
+                            product.productId?._id ||
+                            product.productId ||
+                            index
+                          }
+                        >
+                          <div className="product-details">
+                            <h4>
+                              {product.name ||
+                                product.productName ||
+                                "Unnamed product"}
+                            </h4>
 
-                  </div>
+                            <p>
+                              Quantity: {product.quantity}
+                            </p>
+                          </div>
 
-                  {/* Order Products */}
-                  <div className="dash-order-products">
+                          <div className="product-price">
+                            {Number(
+                              product.priceAtPurchase || 0
+                            ).toFixed(2)}
+                            €
 
-                    {order.products?.map((product, index) => (
-                      <div
-                        className="dash-order-product"
-                        key={
-                          product.productId?._id ||
-                          product.productId ||
-                          index
-                        }
-                      >
-
-                        <div className="product-details">
-                          <h4>
-                            {product.name ||
-                              product.productName ||
-                              "Unnamed product"}
-                          </h4>
-
-                          <p>
-                            Quantity: {product.quantity}
-                          </p>
+                            <small>per item</small>
+                          </div>
                         </div>
+                      ))}
+                    </div>
 
-                        <div className="product-price">
-                          {Number(
-                            product.priceAtPurchase || 0
-                          ).toFixed(2)}€
+                    {/* Order Footer */}
+                    <div className="dash-order-footer">
+                      <div>
+                        <span>Payment method</span>
 
-                          <small>per item</small>
-                        </div>
-
+                        <strong>
+                          {order.paymentMethod ||
+                            "Not specified"}
+                        </strong>
                       </div>
-                    ))}
 
-                  </div>
+                      <div className="order-total">
+                        <span>Order Total</span>
 
-                  {/* Order Footer */}
-                  <div className="dash-order-footer">
-
-                    <div>
-                      <span>Payment method</span>
-
-                      <strong>
-                        {order.paymentMethod || "Not specified"}
-                      </strong>
+                        <strong>
+                          {Number(
+                            order.total || 0
+                          ).toFixed(2)}
+                          €
+                        </strong>
+                      </div>
                     </div>
 
-                    <div className="order-total">
-                      <span>Order Total</span>
-
-                      <strong>
-                        {Number(order.total || 0).toFixed(2)}€
-                      </strong>
-                    </div>
-
-                  </div>
-
-                </article>
-              ))}
+                  </article>
+                );
+              })}
 
             </div>
           </div>
         )}
-
       </section>
     </div>
   );
 }
 
 export default Dashboard;
+

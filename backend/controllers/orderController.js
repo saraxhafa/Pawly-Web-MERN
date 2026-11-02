@@ -1,14 +1,25 @@
 
+
 const mongoose = require("mongoose");
 const Order = require("../models/orderModel");
 const Product = require("../models/productModel");
+const User = require("../models/userModel");
 
 // CREATE ORDER
 const createOrder = async (req, res) => {
-  const session = await mongoose.startSession();
+  let session;
 
   try {
+    session = await mongoose.startSession();
+
     const { products, paymentMethod, paymentDetails } = req.body;
+    const userId = req.user?._id || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "User authentication required",
+      });
+    }
 
     if (!Array.isArray(products) || products.length === 0) {
       return res.status(400).json({
@@ -24,11 +35,16 @@ const createOrder = async (req, res) => {
       });
     }
 
-    // Validate and prepare safe payment information
+    // Validate and prepare safe payment information.
+    // Full card number, CVV and expiry date are never stored.
     let safePaymentDetails;
 
     if (paymentMethod === "DEBIT" || paymentMethod === "CREDIT") {
-      const cardHolder = paymentDetails?.cardHolder?.trim();
+      const cardHolder =
+        typeof paymentDetails?.cardHolder === "string"
+          ? paymentDetails.cardHolder.trim()
+          : "";
+
       const maskedCardNumber = paymentDetails?.maskedCardNumber;
 
       if (!cardHolder || cardHolder.length < 2) {
@@ -54,8 +70,15 @@ const createOrder = async (req, res) => {
     }
 
     if (paymentMethod === "WALLET") {
-      const walletProvider = paymentDetails?.walletProvider?.trim();
-      const walletEmail = paymentDetails?.walletEmail?.trim();
+      const walletProvider =
+        typeof paymentDetails?.walletProvider === "string"
+          ? paymentDetails.walletProvider.trim()
+          : "";
+
+      const walletEmail =
+        typeof paymentDetails?.walletEmail === "string"
+          ? paymentDetails.walletEmail.trim()
+          : "";
 
       const allowedProviders = [
         "PayPal",
@@ -84,11 +107,12 @@ const createOrder = async (req, res) => {
       };
     }
 
-    // Validate and combine duplicate product IDs
+    // Validate products and combine duplicate product IDs.
     const quantities = new Map();
 
     for (const item of products) {
       if (
+        !item ||
         !mongoose.Types.ObjectId.isValid(item.productId) ||
         !Number.isInteger(item.quantity) ||
         item.quantity <= 0
@@ -109,6 +133,17 @@ const createOrder = async (req, res) => {
     let createdOrder;
 
     await session.withTransaction(async () => {
+      // Retrieve the customer's current information.
+      const customer = await User.findById(userId)
+        .select("name email")
+        .session(session);
+
+      if (!customer) {
+        const error = new Error("User not found");
+        error.statusCode = 404;
+        throw error;
+      }
+
       let total = 0;
       const enrichedProducts = [];
 
@@ -121,7 +156,7 @@ const createOrder = async (req, res) => {
           throw new Error("Product not found in system");
         }
 
-        // Atomically check and decrease stock
+        // Check and decrease stock atomically.
         const stockUpdate = await Product.updateOne(
           {
             _id: product._id,
@@ -151,15 +186,19 @@ const createOrder = async (req, res) => {
         });
       }
 
+      // Save the customer's identity at the time of purchase.
       const orderData = {
-        user: req.user._id,
+        user: userId,
+        customerSnapshot: {
+          name: customer.name,
+          email: customer.email,
+        },
         products: enrichedProducts,
         total,
         paymentMethod,
       };
 
-      // Save only approved payment fields.
-      // Any full card number or CVV sent by a client is ignored.
+      // Save only approved payment information.
       if (safePaymentDetails) {
         orderData.paymentDetails = safePaymentDetails;
       }
@@ -173,35 +212,64 @@ const createOrder = async (req, res) => {
     });
 
     return res.status(201).json(createdOrder);
+
   } catch (error) {
+    console.error("Create order error:", error);
+
     return res.status(error.statusCode || 400).json({
       message: error.message,
     });
+
   } finally {
-    await session.endSession();
+    if (session) {
+      await session.endSession();
+    }
   }
 };
+
 
 // GET MY ORDERS
 const getMyOrders = async (req, res) => {
   try {
+    const userId = req.user?._id || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "User authentication required",
+      });
+    }
+
     const orders = await Order.find({
-      user: req.user._id,
+      user: userId,
     }).sort({ createdAt: -1 });
 
     return res.status(200).json(orders);
+
   } catch (error) {
+    console.error("Get orders error:", error);
+
     return res.status(500).json({
       message: error.message,
     });
   }
 };
 
+
 // UPDATE ORDER - ALLOW CANCELLATION ONLY
 const updateOrder = async (req, res) => {
-  const session = await mongoose.startSession();
+  let session;
 
   try {
+    session = await mongoose.startSession();
+
+    const userId = req.user?._id || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "User authentication required",
+      });
+    }
+
     if (req.body.status !== "Cancelled") {
       return res.status(400).json({
         message: "Only order cancellation is allowed",
@@ -219,7 +287,7 @@ const updateOrder = async (req, res) => {
         throw new Error("Order not found");
       }
 
-      if (order.user.toString() !== req.user._id.toString()) {
+      if (order.user.toString() !== userId.toString()) {
         const error = new Error(
           "Not authorized to update this order"
         );
@@ -231,7 +299,7 @@ const updateOrder = async (req, res) => {
         throw new Error("Only pending orders can be cancelled");
       }
 
-      // Restore product stock
+      // Restore product stock.
       for (const item of order.products) {
         await Product.updateOne(
           { _id: item.productId },
@@ -245,20 +313,37 @@ const updateOrder = async (req, res) => {
     });
 
     return res.status(200).json(updatedOrder);
+
   } catch (error) {
+    console.error("Update order error:", error);
+
     return res.status(error.statusCode || 400).json({
       message: error.message,
     });
+
   } finally {
-    await session.endSession();
+    if (session) {
+      await session.endSession();
+    }
   }
 };
 
+
 // DELETE ORDER - PENDING ORDERS ONLY
 const deleteOrder = async (req, res) => {
-  const session = await mongoose.startSession();
+  let session;
 
   try {
+    session = await mongoose.startSession();
+
+    const userId = req.user?._id || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "User authentication required",
+      });
+    }
+
     await session.withTransaction(async () => {
       const order = await Order.findById(req.params.id).session(
         session
@@ -268,7 +353,7 @@ const deleteOrder = async (req, res) => {
         throw new Error("Order not found");
       }
 
-      if (order.user.toString() !== req.user._id.toString()) {
+      if (order.user.toString() !== userId.toString()) {
         const error = new Error(
           "Not authorized to delete this order"
         );
@@ -280,7 +365,7 @@ const deleteOrder = async (req, res) => {
         throw new Error("Only pending orders can be deleted");
       }
 
-      // Restore stock before deleting the order
+      // Restore stock before deleting the order.
       for (const item of order.products) {
         await Product.updateOne(
           { _id: item.productId },
@@ -295,14 +380,21 @@ const deleteOrder = async (req, res) => {
     return res.status(200).json({
       message: "Order deleted successfully",
     });
+
   } catch (error) {
+    console.error("Delete order error:", error);
+
     return res.status(error.statusCode || 400).json({
       message: error.message,
     });
+
   } finally {
-    await session.endSession();
+    if (session) {
+      await session.endSession();
+    }
   }
 };
+
 
 module.exports = {
   createOrder,

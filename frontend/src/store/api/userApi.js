@@ -28,6 +28,7 @@ export const userApi = createApi({
   }),
 
   endpoints: (builder) => ({
+    // REGISTER
     register: builder.mutation({
       query: (newUser) => ({
         url: "/users/register",
@@ -36,6 +37,7 @@ export const userApi = createApi({
       }),
     }),
 
+    // LOGIN
     login: builder.mutation({
       query: (credentials) => ({
         url: "/users/login",
@@ -44,17 +46,38 @@ export const userApi = createApi({
       }),
     }),
 
+    // LOGOUT
     logout: builder.mutation({
       query: () => ({
         url: "/users/logout",
         method: "POST",
       }),
     }),
+
+    // UPDATE PROFILE
+    updateProfile: builder.mutation({
+      query: (profileData) => ({
+        url: "/users/profile",
+        method: "PUT",
+        body: profileData,
+      }),
+    }),
+
+    // DELETE PROFILE
+    deleteProfile: builder.mutation({
+      query: (data) => ({
+        url: "/users/profile",
+        method: "DELETE",
+        body: data,
+      }),
+    }),
   }),
 });
 
 export const {
-  useLoginMutation,
   useRegisterMutation,
+  useLoginMutation,
   useLogoutMutation,
+  useUpdateProfileMutation,
+  useDeleteProfileMutation,
 } = userApi;

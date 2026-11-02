@@ -1,54 +1,67 @@
+
 const jwt = require("jsonwebtoken");
 const asyncHandler = require("express-async-handler");
 const User = require("../models/userModel");
-const Order = require("../models/orderModel");
 
+// ======================
+// PROTECT ROUTES
+// ======================
 const protect = asyncHandler(async (req, res, next) => {
+  // Allow CORS preflight requests.
   if (req.method === "OPTIONS") {
     return next();
   }
-  
 
+  const authHeader = req.headers.authorization;
 
-  let token;
-
-  // 1. Check Authorization header
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    try {
-      token = req.headers.authorization.split(" ")[1];
-
-      if (!token) {
-        return res.status(401).json({ message: "No token provided" });
-      }
-
-      // 2. Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // 3. Get user
-      const user = await User.findById(decoded.id).select("-password");
-
-      if (!user) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      // 4. attach user to request (IMPORTANT)
-      req.user = user;
-
-      next();
-    } catch (error) {
-      return res.status(401).json({
-        message: "Not authorized, token failed",
-      });
-    }
-  } else {
+  // Check Authorization header.
+  if (!authHeader || !/^Bearer\s+/i.test(authHeader)) {
     return res.status(401).json({
       message: "No token, authorization denied",
     });
   }
+
+  const token = authHeader.split(/\s+/)[1];
+
+  if (!token) {
+    return res.status(401).json({
+      message: "No token provided",
+    });
+  }
+
+  // Verify JWT.
+  let decoded;
+
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    return res.status(401).json({
+      message: "Not authorized, token failed",
+    });
+  }
+
+  // Check decoded user ID.
+  if (!decoded?.id) {
+    return res.status(401).json({
+      message: "Invalid authentication token",
+    });
+  }
+
+  // Find authenticated user in MongoDB.
+  const user = await User.findById(decoded.id).select("-password");
+
+  if (!user) {
+    return res.status(401).json({
+      message: "User not found",
+    });
+  }
+
+  // Attach authenticated user to request.
+  req.user = user;
+
+  return next();
 });
 
-
-module.exports={protect}
+module.exports = {
+  protect,
+};
